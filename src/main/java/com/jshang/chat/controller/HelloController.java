@@ -3,9 +3,7 @@ package com.jshang.chat.controller;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.BeansException;
@@ -18,7 +16,7 @@ import reactor.core.publisher.Flux;
 
 /**
  * @Classname HelloController
- * @Description TODO
+ * @Description 聊天输出Demo
  * @Date 2025/7/26 12:55
  * @Author Shawn
  */
