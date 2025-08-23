@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class ChatModelConfig {
-    @Bean(name = "qwPlus")
+    @Bean(name = "qwPlusModel")
     public ChatModel qwPlus(OpenAiChatModel baseModel) {
         return baseModel.mutate()
                 .defaultOptions(OpenAiChatOptions.builder()

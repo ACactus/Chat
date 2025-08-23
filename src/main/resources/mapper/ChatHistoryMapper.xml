@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jshang.chat.mapper.ChatHistoryMapper">
+
+    <resultMap id="BaseResultMap" type="com.jshang.chat.pojo.entities.ChatHistory">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="userId" column="user_id" jdbcType="BIGINT"/>
+            <result property="conversationId" column="conversation_id" jdbcType="BIGINT"/>
+            <result property="role" column="role" jdbcType="TINYINT"/>
+            <result property="rawContent" column="raw_content" jdbcType="VARCHAR"/>
+            <result property="rate" column="rate" jdbcType="TINYINT"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,conversation_id,
+        role,raw_content,rate,
+        create_time,update_time
+    </sql>
+</mapper>

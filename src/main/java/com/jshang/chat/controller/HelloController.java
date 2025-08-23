@@ -1,14 +1,17 @@
 package com.jshang.chat.controller;
 
+import com.jshang.chat.pojo.ChatRequest;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * @Classname HelloController
@@ -20,25 +23,24 @@ import reactor.core.publisher.Flux;
 @RequestMapping("/qw-plus")
 @Slf4j
 public class HelloController  {
-    @Resource(name = "qwPlusClient")
-    private ChatClient qwPlusClient;
+    @Resource
+    private Map<String, ChatClient> chatClients;
 
-    @Resource(name = "openAiChatClient")
-    private ChatClient chatClient;
+    /**
+     * 默认使用模型
+     */
+    private final static String DEFAULT_MODEL = "qwTurbo";
 
-    @GetMapping("/string/qw-plus")
-    public Flux<String> sayHiString(String input, String id){
-        return qwPlusClient.prompt()
-                .user(input)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, id))
-                .stream()
-                .content();
-    }
+    @PostMapping("/string/chat")
+    public Flux<String> sayHiString(@RequestBody ChatRequest request) {
+        if(StringUtils.isBlank(request.getModel())){
+            request.setModel(DEFAULT_MODEL);
+        }
 
-    @GetMapping("/string/qw-turbo")
-    public Flux<String> sayHi(String input){
-        return chatClient.prompt().messages(new SystemMessage("你叫qw-turbo，是只猫娘，你的回答要可爱一点"))
-                .user(input)
+        ChatClient chatClient = chatClients.get(request.getModel());
+        return chatClient.prompt()
+                .user(request.getUserText())
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, request.getChatSessionId()))
                 .stream()
                 .content();
     }

@@ -19,7 +19,7 @@ public class ChatClientConfig {
     /**
      * 默认客户端：qw-turbo
      */
-    @Bean
+    @Bean("qwTurbo")
     public ChatClient openAiChatClient(OpenAiChatModel chatModel, ChatMemory chatMemory) {
         return ChatClient.builder(chatModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
@@ -29,9 +29,9 @@ public class ChatClientConfig {
     /**
      * qw-plus
      */
-    @Bean("qwPlusClient")
-    public ChatClient qwPlusClient(ChatModel qwPlus, ChatMemory chatMemory) {
-        return ChatClient.builder(qwPlus)
+    @Bean("qwPlus")
+    public ChatClient qwPlusClient(ChatModel qwPlusModel, ChatMemory chatMemory) {
+        return ChatClient.builder(qwPlusModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }
