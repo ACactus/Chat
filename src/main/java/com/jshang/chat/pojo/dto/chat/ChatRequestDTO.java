@@ -1,5 +1,6 @@
-package com.jshang.chat.pojo;
+package com.jshang.chat.pojo.dto.chat;
 
+import com.jshang.chat.common.consts.ModelConst;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -11,16 +12,17 @@ import java.io.Serializable;
  * @Author Shawn
  */
 @Data
-public class ChatRequest implements Serializable {
+public class ChatRequestDTO implements Serializable {
     /**
      * 模型
+     * @see ModelConst
      */
     private String model;
 
     /**
      * 会话聊天ID
      */
-    private String chatSessionId;
+    private String conversationSeq;
 
     /**
      * 用户输入

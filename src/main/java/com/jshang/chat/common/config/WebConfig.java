@@ -1,4 +1,4 @@
-package com.jshang.chat.config;
+package com.jshang.chat.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,14 +1,10 @@
-package com.jshang.chat.pojo.entities;
+package com.jshang.chat.pojo.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 /**
  * 用户表
@@ -31,10 +27,12 @@ public class User implements Serializable {
     /**
      * 创建时间
      */
+    @TableField(insertStrategy = FieldStrategy.NEVER)
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
+    @TableField(insertStrategy = FieldStrategy.NEVER)
     private LocalDateTime updateTime;
 }

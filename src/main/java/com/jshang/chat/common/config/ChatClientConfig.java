@@ -1,5 +1,6 @@
-package com.jshang.chat.config;
+package com.jshang.chat.common.config;
 
+import com.jshang.chat.common.consts.ModelConst;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -19,7 +20,7 @@ public class ChatClientConfig {
     /**
      * 默认客户端：qw-turbo
      */
-    @Bean("qwTurbo")
+    @Bean(ModelConst.QW_TURBO)
     public ChatClient openAiChatClient(OpenAiChatModel chatModel, ChatMemory chatMemory) {
         return ChatClient.builder(chatModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
@@ -29,7 +30,7 @@ public class ChatClientConfig {
     /**
      * qw-plus
      */
-    @Bean("qwPlus")
+    @Bean(ModelConst.QW_PLUS)
     public ChatClient qwPlusClient(ChatModel qwPlusModel, ChatMemory chatMemory) {
         return ChatClient.builder(qwPlusModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())

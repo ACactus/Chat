@@ -4,9 +4,8 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jshang.chat.mapper.ChatHistoryMapper">
 
-    <resultMap id="BaseResultMap" type="com.jshang.chat.pojo.entities.ChatHistory">
+    <resultMap id="BaseResultMap" type="com.jshang.chat.pojo.entity.ChatHistory">
             <id property="id" column="id" jdbcType="BIGINT"/>
-            <result property="userId" column="user_id" jdbcType="BIGINT"/>
             <result property="conversationId" column="conversation_id" jdbcType="BIGINT"/>
             <result property="role" column="role" jdbcType="TINYINT"/>
             <result property="rawContent" column="raw_content" jdbcType="VARCHAR"/>
@@ -16,8 +15,27 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,conversation_id,
+        id,seq,conversation_id,
         role,raw_content,rate,
         create_time,update_time
     </sql>
+
+    <select id="listChatHistory" resultType="com.jshang.chat.pojo.entity.ChatHistory">
+        SELECT ch.id, ch.seq, ch.conversation_id, ch.role, ch.raw_content, ch.rate, ch.create_time, ch.update_time
+        FROM chat_history ch LEFT JOIN chat_conversation cc  ON ch.conversation_id = cc.id
+        <where>
+            <if test="conversationId != null">
+                AND cc.id = #{conversationId}
+            </if>
+            <if test="conversationSeq != null and conversationSeq != ''">
+                AND cc.seq = #{conversationSeq}
+            </if>
+            <if test="userId != null">
+                AND cc.user_id = #{userId}
+            </if>
+            <if test="seq != null">
+                AND ch.seq = #{seq}
+            </if>
+        </where>
+    </select>
 </mapper>

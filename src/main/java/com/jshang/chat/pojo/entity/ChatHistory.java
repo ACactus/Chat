@@ -1,12 +1,10 @@
-package com.jshang.chat.pojo.entities;
+package com.jshang.chat.pojo.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import java.io.Serializable;
-import java.util.Date;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * 聊天记录表
@@ -22,9 +20,9 @@ public class ChatHistory implements Serializable {
     private Long id;
 
     /**
-     * 用户ID
+     * 流水号
      */
-    private Long userId;
+    private String seq;
 
     /**
      * 会话ID
@@ -49,12 +47,14 @@ public class ChatHistory implements Serializable {
     /**
      * 创建时间
      */
-    private Date createTime;
+    @TableField(insertStrategy = FieldStrategy.NEVER)
+    private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    private Date updateTime;
+    @TableField(insertStrategy = FieldStrategy.NEVER)
+    private LocalDateTime updateTime;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

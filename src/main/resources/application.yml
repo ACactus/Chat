@@ -5,6 +5,7 @@ spring:
     active: local
   ai:
     openai:
+      # 自行配置
       api-key: "your key"
       base-url: "https://dashscope.aliyuncs.com/compatible-mode/"
       chat:
@@ -12,19 +13,24 @@ spring:
           model: "qwen-turbo"
     chat:
       client:
+        # 关闭自动创建ChatClient,自行创建
         enabled: false
       memory:
         repository:
           jdbc:
             initialize-schema: always
+            schema: classpath:org/springframework/ai/chat/memory/repository/jdbc/schema-mariadb.sql
   webflux:
     base-path: /chat
   datasource:
+    # 数据库联系信息自行在dev中配置
     hikari:
       jdbc-url: jdbc:mysql://xxxx:3306/xxx
       username: xx
       password: xxx
       driver-class-name: com.mysql.cj.jdbc.Driver
 
-server:
-  port: 8080
+mybatis-plus:
+  # 关闭MyBatis-Plus Banner
+  global-config:
+    banner: false
