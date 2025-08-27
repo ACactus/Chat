@@ -7,7 +7,6 @@ import org.springframework.beans.BeanUtils;
 import java.time.LocalDateTime;
 
 /**
- * @Classname ChatConversationListItemVO
  * @Description 聊天会话列表项VO
  * @Date 2025/8/24 10:46
  * @Author Shawn

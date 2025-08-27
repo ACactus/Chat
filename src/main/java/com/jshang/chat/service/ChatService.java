@@ -5,18 +5,20 @@ import com.jshang.chat.common.enums.ChatStreamResponseTypeEnum;
 import com.jshang.chat.common.utils.ThreadLocalUtil;
 import com.jshang.chat.pojo.dto.chat.ChatRequestDTO;
 import com.jshang.chat.pojo.entity.ChatConversation;
-import com.jshang.chat.pojo.entity.ChatHistory;
 import com.jshang.chat.pojo.entity.User;
-import com.jshang.chat.pojo.vo.ChatStreamResponseVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @Classname ChatService
@@ -36,35 +38,72 @@ public class ChatService {
 
     /**
      * 文本聊天业务逻辑
-     * 输出顺序：会话信息 -> 聊天内容 -> 结束
+     * 响应式流程：查询会话 -> 保存用户输入 -> 流式AI响应 -> 保存AI响应
      */
-    public Flux<ChatStreamResponseVO<?>> chatString(ChatRequestDTO request) {
+    public Flux<ServerSentEvent<?>> chatString(ChatRequestDTO request) {
         ChatClient chatClient = chatClients.get(request.getModel());
-        // 存储完整的LLM响应
-        StringBuffer llmResponse = new StringBuffer();
+
+        return Mono.fromCallable(() -> ensureConversation(request))
+                .flatMap(conversation -> {
+                    // 1. 保存用户消息（放在 boundedElastic 防止阻塞）
+                    return Mono.fromRunnable(() ->
+                                    chatHistoryService.saveChatHistory(ChatRoleEnum.USER, conversation.getId(), request.getUserText())
+                            ).subscribeOn(Schedulers.boundedElastic())
+                            .thenReturn(conversation);
+                })
+                .flatMapMany(conversation -> {
+                    // 2. 先发送会话信息
+                    ServerSentEvent<ChatConversation> conversationInfo = ServerSentEvent.<ChatConversation>builder()
+                            .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
+                            .data(conversation)
+                            .build();
+                    Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(conversationInfo);
+
+                    // 3. AI 响应流
+                    Flux<String> aiResponses = chatClient.prompt()
+                            .user(request.getUserText())
+                            .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
+                            .stream()
+                            .content();
+
+                    // 4. 把响应流发给前端
+                    Flux<ServerSentEvent<String>> textFlux = aiResponses
+                            .map(text -> ServerSentEvent.builder(text)
+                                    .event(ChatStreamResponseTypeEnum.TEXT.name())
+                                    .build());
+
+                    // 5. 聚合完整响应并保存（放到 boundedElastic 防止阻塞）
+                    Mono<Void> saveHistory = aiResponses
+                            .collect(Collectors.joining())
+                            .flatMap(fullResponse -> Mono.fromRunnable(() ->
+                                    chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, conversation.getId(), fullResponse)
+                            ).subscribeOn(Schedulers.boundedElastic())).then();
+
+                    // 6. AI 响应结束标记
+                    Flux<ServerSentEvent<String>> endFlux =
+                            Flux.just(ServerSentEvent.builder("")
+                                    .event(ChatStreamResponseTypeEnum.TEXT_END.name())
+                                    .build());
+
+                    // 7. 合并：会话信息 -> AI响应流 -> 结束标记 -> 保存历史
+                    return Flux.concat(
+                            conversationFlux,
+                            textFlux,
+                            endFlux,
+                            saveHistory.thenMany(Flux.empty())
+                    );
+                });
+    }
+
+
+    /**
+     * 会话存在则返回会话内容，否则新建一个会话
+     */
+    private ChatConversation ensureConversation(ChatRequestDTO request) {
         User currUser = ThreadLocalUtil.getUser();
-        // 查询会话信息，无会话流水号则新建一个会话
-        String userText = request.getUserText();
-        ChatConversation conversation = StringUtils.isNotBlank(request.getConversationSeq()) ?
-                chatConversationService.getConversationBySeq(request.getConversationSeq()) : chatConversationService.newConversation(currUser.getId(), generateConversationTitle(userText));
-        ChatHistory history = chatHistoryService.saveChatHistory(ChatRoleEnum.USER, conversation.getId(), request.getUserText());
-
-        // 会话信息
-        Flux<ChatStreamResponseVO<ChatConversation>> conversationInfo = Flux.just(new ChatStreamResponseVO<>(ChatStreamResponseTypeEnum.CONVERSATION_INFO.getCode(), conversation, false));
-
-        // 流式聊天内容
-        Flux<ChatStreamResponseVO<String>> chatContent = chatClient.prompt()
-                .user(userText)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
-                .stream()
-                .content()
-                .map(ChatStreamResponseVO::chatString)
-                .doOnNext(content -> llmResponse.append(content.getData()))
-                .doOnComplete(() -> chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, history.getConversationId(), llmResponse.toString()));
-        // 结束标识
-        Flux<ChatStreamResponseVO<String>> endFlag = Flux.just(ChatStreamResponseVO.end());
-        // 合并会话信息和聊天内容
-        return Flux.concat(conversationInfo, chatContent, endFlag);
+        return StringUtils.isNotBlank(request.getConversationSeq()) ?
+                chatConversationService.getConversationBySeq(request.getConversationSeq()) :
+                chatConversationService.newConversation(currUser.getId(), generateConversationTitle(request.getUserText()));
     }
 
     /**

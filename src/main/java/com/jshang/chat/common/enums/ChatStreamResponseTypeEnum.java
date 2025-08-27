@@ -16,16 +16,16 @@ public enum ChatStreamResponseTypeEnum {
     /**
      * 会话信息
      */
-    CONVERSATION_INFO(1),
+    CONVERSATION_INFO,
 
     /**
-     * 聊天内容
+     * 文本开始
      */
-    CHAT_STRING(2),
+    TEXT,
+
+    /**
+     * 文本结束
+     */
+    TEXT_END,
     ;
-
-    /**
-     * 响应类型编码
-     */
-    private final Integer code;
 }
