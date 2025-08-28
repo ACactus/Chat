@@ -19,7 +19,6 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.Serializable;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * @Classname ChatService
@@ -54,13 +53,18 @@ public class ChatService {
                             .build();
                     Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(conversationInfo);
 
-                    //  AI 响应流 - 使用share()避免多次订阅
+                    StringBuilder resString = new StringBuilder();
+                    //  AI 响应流
                     Flux<String> aiResponses = chatClient.prompt()
                             .user(request.getUserText())
                             .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
                             .stream()
                             .content()
-                            .share(); // 关键：共享流，避免多次订阅
+                            .doOnNext(text -> resString.append(text))
+                            .concatWith(Mono.fromRunnable(() -> {
+                                        chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, conversation.getId(), resString.toString());
+                                    }).subscribeOn(Schedulers.boundedElastic()).thenMany(Flux.empty())
+                            );
 
                     //  把响应流发给前端
                     Flux<ServerSentEvent<String>> textFlux = aiResponses
@@ -68,18 +72,10 @@ public class ChatService {
                                     .event(ChatStreamResponseTypeEnum.TEXT.name())
                                     .build());
 
-                    //  聚合完整响应并保存（放到 boundedElastic 防止阻塞）
-                    Mono<Void> saveHistory = aiResponses
-                            .collect(Collectors.joining())
-                            .flatMap(fullResponse -> Mono.fromRunnable(() ->
-                                    chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, conversation.getId(), fullResponse)
-                            ).subscribeOn(Schedulers.boundedElastic())).then();
-
                     //合并：会话信息 -> AI响应流 -> 结束标记 -> 保存历史
                     return Flux.concat(
                             conversationFlux,
-                            textFlux,
-                            saveHistory.thenMany(Flux.empty())
+                            textFlux
                     );
                 }).onErrorResume(throwable -> {
                     log.error("Chat error", throwable);
