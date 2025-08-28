@@ -1,9 +1,0 @@
-spring:
-  ai:
-    openai:
-      api-key: "sk-ea7e9c9a50b94114ba7df186e587666f"
-  datasource:
-    hikari:
-      jdbc-url: jdbc:mysql://localhost:3306/chat
-      username: root
-      password: root
