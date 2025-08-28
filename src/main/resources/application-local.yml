@@ -1,0 +1,9 @@
+spring:
+  ai:
+    openai:
+      api-key: sk-603f7d3e3392465081fbdaaf0a3df239
+  datasource:
+    hikari:
+      jdbc-url: jdbc:mysql://localhost:3306/chat
+      username: root
+      password: root

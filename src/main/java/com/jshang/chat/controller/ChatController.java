@@ -13,6 +13,7 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -30,10 +31,10 @@ public class ChatController {
     /**
      * 默认使用模型
      */
-    private final static String DEFAULT_MODEL = ModelConst.QW_PLUS;
+    private static final String DEFAULT_MODEL = ModelConst.QW_PLUS;
 
     @PostMapping(value = "/string", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<?>> chatString(@RequestBody ChatRequestDTO request) {
+    public Flux<ServerSentEvent<? extends Serializable>> chatString(@RequestBody ChatRequestDTO request) {
         if(StringUtils.isBlank(request.getModel())){
             request.setModel(DEFAULT_MODEL);
         }
@@ -42,7 +43,7 @@ public class ChatController {
     }
 
     @GetMapping(value = "/test", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<?>> test(ChatRequestDTO request) {
+    public Flux<ServerSentEvent<? extends Serializable>> test(ChatRequestDTO request) {
         if(StringUtils.isBlank(request.getModel())){
             request.setModel(DEFAULT_MODEL);
         }

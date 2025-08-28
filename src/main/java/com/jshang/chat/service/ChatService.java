@@ -17,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -40,58 +41,51 @@ public class ChatService {
      * 文本聊天业务逻辑
      * 响应式流程：查询会话 -> 保存用户输入 -> 流式AI响应 -> 保存AI响应
      */
-    public Flux<ServerSentEvent<?>> chatString(ChatRequestDTO request) {
+    public Flux<ServerSentEvent<? extends Serializable>> chatString(ChatRequestDTO request) {
         ChatClient chatClient = chatClients.get(request.getModel());
 
         return Mono.fromCallable(() -> ensureConversation(request))
-                .flatMap(conversation -> {
-                    // 1. 保存用户消息（放在 boundedElastic 防止阻塞）
-                    return Mono.fromRunnable(() ->
-                                    chatHistoryService.saveChatHistory(ChatRoleEnum.USER, conversation.getId(), request.getUserText())
-                            ).subscribeOn(Schedulers.boundedElastic())
-                            .thenReturn(conversation);
-                })
+                .flatMap(conversation -> Mono.fromRunnable(() -> chatHistoryService.saveChatHistory(ChatRoleEnum.USER, conversation.getId(), request.getUserText())).subscribeOn(Schedulers.boundedElastic()).thenReturn(conversation))
                 .flatMapMany(conversation -> {
-                    // 2. 先发送会话信息
+                    //  先发送会话信息
                     ServerSentEvent<ChatConversation> conversationInfo = ServerSentEvent.<ChatConversation>builder()
                             .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
                             .data(conversation)
                             .build();
                     Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(conversationInfo);
 
-                    // 3. AI 响应流
+                    //  AI 响应流 - 使用share()避免多次订阅
                     Flux<String> aiResponses = chatClient.prompt()
                             .user(request.getUserText())
                             .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
                             .stream()
-                            .content();
+                            .content()
+                            .share(); // 关键：共享流，避免多次订阅
 
-                    // 4. 把响应流发给前端
+                    //  把响应流发给前端
                     Flux<ServerSentEvent<String>> textFlux = aiResponses
                             .map(text -> ServerSentEvent.builder(text)
                                     .event(ChatStreamResponseTypeEnum.TEXT.name())
                                     .build());
 
-                    // 5. 聚合完整响应并保存（放到 boundedElastic 防止阻塞）
+                    //  聚合完整响应并保存（放到 boundedElastic 防止阻塞）
                     Mono<Void> saveHistory = aiResponses
                             .collect(Collectors.joining())
                             .flatMap(fullResponse -> Mono.fromRunnable(() ->
                                     chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, conversation.getId(), fullResponse)
                             ).subscribeOn(Schedulers.boundedElastic())).then();
 
-                    // 6. AI 响应结束标记
-                    Flux<ServerSentEvent<String>> endFlux =
-                            Flux.just(ServerSentEvent.builder("")
-                                    .event(ChatStreamResponseTypeEnum.TEXT_END.name())
-                                    .build());
-
-                    // 7. 合并：会话信息 -> AI响应流 -> 结束标记 -> 保存历史
+                    //合并：会话信息 -> AI响应流 -> 结束标记 -> 保存历史
                     return Flux.concat(
                             conversationFlux,
                             textFlux,
-                            endFlux,
                             saveHistory.thenMany(Flux.empty())
                     );
+                }).onErrorResume(throwable -> {
+                    log.error("Chat error", throwable);
+                    return Flux.just(ServerSentEvent.builder(throwable.getMessage())
+                            .event(ChatStreamResponseTypeEnum.ERROR.name())
+                            .build());
                 });
     }
 
@@ -110,7 +104,7 @@ public class ChatService {
      * 生成会话标题
      *  TODO AI生成
      */
-    public String generateConversationTitle(String userText){
+    public String generateConversationTitle(String userText) {
         return userText.substring(0, Math.min(16, userText.length()));
     }
 }

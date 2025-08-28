@@ -24,8 +24,8 @@ public enum ChatStreamResponseTypeEnum {
     TEXT,
 
     /**
-     * 文本结束
+     * 错误信息
      */
-    TEXT_END,
+    ERROR,
     ;
 }
