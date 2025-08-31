@@ -58,7 +58,7 @@ public class UserAuthService {
             String userInfoJson = objectMapper.writeValueAsString(jwtClaims);
             // 构建JWT
             return Jwts.builder()
-                    .subject(request.getUsername())
+                    .subject(String.valueOf(userInfo.getId()))
                     .issuer(appName)
                     .issuedAt(new Date())
                     .expiration(expiration)

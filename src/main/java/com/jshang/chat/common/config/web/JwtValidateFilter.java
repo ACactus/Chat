@@ -6,7 +6,7 @@ import com.jshang.chat.service.UserAuthService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.server.RequestPath;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
@@ -40,11 +40,9 @@ public class JwtValidateFilter implements WebFilter {
     @NonNull
     public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        RequestPath path = request.getPath();
-        String requestPath = path.value();
-
+        String requestPath = request.getPath().value();
         // 检查是否在白名单中，如果是则直接放行
-        if (isWhiteListPath(requestPath)) {
+        if (request.getMethod() == HttpMethod.OPTIONS ||isWhiteListPath(requestPath)) {
             return chain.filter(exchange);
         }
 
