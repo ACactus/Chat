@@ -1,4 +1,4 @@
-package com.jshang.chat.common.config;
+package com.jshang.chat.common.config.chat;
 
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;

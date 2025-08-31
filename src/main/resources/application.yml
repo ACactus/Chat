@@ -30,6 +30,10 @@ spring:
       password: xxx
       driver-class-name: com.mysql.cj.jdbc.Driver
 
+# JWT配置
+jwt:
+  secret: xxxxxxxx
+
 mybatis-plus:
   # 关闭MyBatis-Plus Banner
   global-config:

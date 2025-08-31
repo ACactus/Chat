@@ -8,4 +8,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserService extends ServiceImpl<UserMapper, User> {
 
+    /**
+     * 获取用户信息
+     */
+    public User getUserByUsername(String username) {
+        return lambdaQuery().eq(User::getUserName, username).one();
+    }
+
 }

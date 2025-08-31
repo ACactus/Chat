@@ -30,4 +30,8 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ServiceCodeEnum serviceCodeEnum){
         this(serviceCodeEnum.getCode(), serviceCodeEnum.getDescription());
     }
+
+    public BusinessException(ServiceCodeEnum serviceCodeEnum, String message){
+        this(serviceCodeEnum.getCode(), message);
+    }
 }

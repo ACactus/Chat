@@ -5,7 +5,7 @@ import com.jshang.chat.common.enums.ChatStreamResponseTypeEnum;
 import com.jshang.chat.common.utils.ThreadLocalUtil;
 import com.jshang.chat.pojo.dto.chat.ChatRequestDTO;
 import com.jshang.chat.pojo.entity.ChatConversation;
-import com.jshang.chat.pojo.entity.User;
+import com.jshang.chat.pojo.entity.ChatHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -43,40 +43,28 @@ public class ChatService {
     public Flux<ServerSentEvent<? extends Serializable>> chatString(ChatRequestDTO request) {
         ChatClient chatClient = chatClients.get(request.getModel());
 
-        return Mono.fromCallable(() -> ensureConversation(request))
-                .flatMap(conversation -> Mono.fromRunnable(() -> chatHistoryService.saveChatHistory(ChatRoleEnum.USER, conversation.getId(), request.getUserText())).subscribeOn(Schedulers.boundedElastic()).thenReturn(conversation))
+        return ensureConversation(request)
+                .flatMap(conversation -> this.saveChatHistoryMono(conversation, ChatRoleEnum.USER, request.getUserText()).thenReturn(conversation))
                 .flatMapMany(conversation -> {
                     //  先发送会话信息
-                    ServerSentEvent<ChatConversation> conversationInfo = ServerSentEvent.<ChatConversation>builder()
-                            .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
-                            .data(conversation)
-                            .build();
-                    Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(conversationInfo);
+                    Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(
+                            ServerSentEvent.builder(conversation)
+                                    .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
+                                    .build()
+                    );
 
                     StringBuilder resString = new StringBuilder();
                     //  AI 响应流
-                    Flux<String> aiResponses = chatClient.prompt()
-                            .user(request.getUserText())
-                            .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
-                            .stream()
-                            .content()
-                            .doOnNext(text -> resString.append(text))
-                            .concatWith(Mono.fromRunnable(() -> {
-                                        chatHistoryService.saveChatHistory(ChatRoleEnum.ASSISTANT, conversation.getId(), resString.toString());
-                                    }).subscribeOn(Schedulers.boundedElastic()).thenMany(Flux.empty())
-                            );
-
-                    //  把响应流发给前端
-                    Flux<ServerSentEvent<String>> textFlux = aiResponses
+                    Flux<ServerSentEvent<String>> aiResponses = chatFlux(chatClient, request, conversation)
+                            .doOnNext(resString::append)
                             .map(text -> ServerSentEvent.builder(text)
                                     .event(ChatStreamResponseTypeEnum.TEXT.name())
                                     .build());
+                    // 保存历史
+                    Flux<ServerSentEvent<String>> saveAssistantChat = saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, resString.toString()).thenMany(Flux.empty());
 
-                    //合并：会话信息 -> AI响应流 -> 结束标记 -> 保存历史
-                    return Flux.concat(
-                            conversationFlux,
-                            textFlux
-                    );
+                    //合并：会话信息 -> AI响应流 -> 保存历史
+                    return Flux.concat(conversationFlux, aiResponses, saveAssistantChat);
                 }).onErrorResume(throwable -> {
                     log.error("Chat error", throwable);
                     return Flux.just(ServerSentEvent.builder(throwable.getMessage())
@@ -85,15 +73,35 @@ public class ChatService {
                 });
     }
 
-
     /**
      * 会话存在则返回会话内容，否则新建一个会话
      */
-    private ChatConversation ensureConversation(ChatRequestDTO request) {
-        User currUser = ThreadLocalUtil.getUser();
-        return StringUtils.isNotBlank(request.getConversationSeq()) ?
-                chatConversationService.getConversationBySeq(request.getConversationSeq()) :
-                chatConversationService.newConversation(currUser.getId(), generateConversationTitle(request.getUserText()));
+    private Mono<ChatConversation> ensureConversation(ChatRequestDTO request) {
+        Long userId = ThreadLocalUtil.getUserId();
+        String conversationSeq = request.getConversationSeq();
+        String userText = request.getUserText();
+        return Mono.fromCallable(() -> StringUtils.isNotBlank(conversationSeq) ? chatConversationService.getConversationBySeq(conversationSeq) : chatConversationService.newConversation(userId, generateConversationTitle(userText)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 保存聊天记录
+     */
+    private Mono<ChatHistory> saveChatHistoryMono(ChatConversation conversation, ChatRoleEnum roleEnum, String content) {
+        return Mono.fromCallable(() -> chatHistoryService.saveChatHistory(roleEnum, conversation.getId(), content)).subscribeOn(Schedulers.boundedElastic());
+    }
+
+
+    /**
+     * AI响应
+     */
+    private Flux<String> chatFlux(ChatClient chatClient, ChatRequestDTO request, ChatConversation conversation) {
+        //  AI 响应流
+        return chatClient.prompt()
+                .user(request.getUserText())
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversation.getSeq()))
+                .stream()
+                .content();
     }
 
     /**

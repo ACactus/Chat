@@ -38,7 +38,7 @@ public class ChatController {
         if(StringUtils.isBlank(request.getModel())){
             request.setModel(DEFAULT_MODEL);
         }
-        request.setUserId(ThreadLocalUtil.getUser().getId());
+        request.setUserId(ThreadLocalUtil.getUserId());
         return chatService.chatString(request);
     }
 

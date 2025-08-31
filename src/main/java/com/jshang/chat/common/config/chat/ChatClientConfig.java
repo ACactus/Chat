@@ -1,4 +1,4 @@
-package com.jshang.chat.common.config;
+package com.jshang.chat.common.config.chat;
 
 import com.jshang.chat.common.consts.ModelConst;
 import org.springframework.ai.chat.client.ChatClient;
@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class ChatClientConfig {
+    private static final String DEFAULT_SYSTEM = "你是一名多功能助手，名叫贾维斯，目前型号MK1，你的创造者是Shawn。";
 
     /**
      * 默认客户端：qw-turbo
@@ -24,6 +25,7 @@ public class ChatClientConfig {
     public ChatClient openAiChatClient(OpenAiChatModel chatModel, ChatMemory chatMemory) {
         return ChatClient.builder(chatModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultSystem(DEFAULT_SYSTEM)
                 .build();
     }
 
@@ -34,6 +36,7 @@ public class ChatClientConfig {
     public ChatClient qwPlusClient(ChatModel qwPlusModel, ChatMemory chatMemory) {
         return ChatClient.builder(qwPlusModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultSystem(DEFAULT_SYSTEM)
                 .build();
     }
 }
