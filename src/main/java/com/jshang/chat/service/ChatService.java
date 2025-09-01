@@ -53,18 +53,21 @@ public class ChatService {
                                     .build()
                     );
 
-                    StringBuilder resString = new StringBuilder();
-                    //  AI 响应流
+                    // AI 响应流 - 单次订阅，同时收集和流式输出
+                    StringBuilder fullResponse = new StringBuilder();
                     Flux<ServerSentEvent<String>> aiResponses = chatFlux(chatClient, request, conversation)
-                            .doOnNext(resString::append)
+                            .doOnNext(fullResponse::append) // 副作用：收集完整响应
                             .map(text -> ServerSentEvent.builder(text)
                                     .event(ChatStreamResponseTypeEnum.TEXT.name())
-                                    .build());
-                    // 保存历史
-                    Flux<ServerSentEvent<String>> saveAssistantChat = saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, resString.toString()).thenMany(Flux.empty());
+                                    .build())
+                            .doOnComplete(() -> {
+                                // 流结束时保存完整响应
+                                saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, fullResponse.toString())
+                                        .subscribe(); // 异步保存
+                            });
 
-                    //合并：会话信息 -> AI响应流 -> 保存历史
-                    return Flux.concat(conversationFlux, aiResponses, saveAssistantChat);
+                    //合并：会话信息 -> AI响应流
+                    return Flux.concat(conversationFlux, aiResponses);
                 }).onErrorResume(throwable -> {
                     log.error("Chat error", throwable);
                     return Flux.just(ServerSentEvent.builder(throwable.getMessage())
