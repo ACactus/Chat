@@ -62,8 +62,7 @@ public class ChatService {
                                     .build())
                             .doOnComplete(() -> {
                                 // 流结束时保存完整响应
-                                saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, fullResponse.toString())
-                                        .subscribe(); // 异步保存
+                                saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, fullResponse.toString()).subscribeOn(Schedulers.boundedElastic());
                             });
 
                     //合并：会话信息 -> AI响应流
