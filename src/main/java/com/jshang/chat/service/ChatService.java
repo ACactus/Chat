@@ -44,35 +44,77 @@ public class ChatService {
         ChatClient chatClient = chatClients.get(request.getModel());
 
         return ensureConversation(request)
-                .flatMap(conversation -> this.saveChatHistoryMono(conversation, ChatRoleEnum.USER, request.getUserText()).thenReturn(conversation))
-                .flatMapMany(conversation -> {
-                    //  先发送会话信息
-                    Flux<ServerSentEvent<ChatConversation>> conversationFlux = Flux.just(
-                            ServerSentEvent.builder(conversation)
-                                    .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
-                                    .build()
-                    );
+                .flatMap(conversation -> saveUserMessage(conversation, request.getUserText()))
+                .flatMapMany(conversation -> streamChatResponse(chatClient, request, conversation))
+                .onErrorResume(this::handleChatError);
+    }
 
-                    // AI 响应流 - 单次订阅，同时收集和流式输出
-                    StringBuilder fullResponse = new StringBuilder();
-                    Flux<ServerSentEvent<String>> aiResponses = chatFlux(chatClient, request, conversation)
-                            .doOnNext(fullResponse::append) // 副作用：收集完整响应
-                            .map(text -> ServerSentEvent.builder(text)
-                                    .event(ChatStreamResponseTypeEnum.TEXT.name())
-                                    .build())
-                            .doOnComplete(() -> {
-                                // 流结束时保存完整响应
-                                saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, fullResponse.toString()).subscribeOn(Schedulers.boundedElastic());
-                            });
+    /**
+     * 保存用户消息
+     */
+    private Mono<ChatConversation> saveUserMessage(ChatConversation conversation, String userText) {
+        return saveChatHistoryMono(conversation, ChatRoleEnum.USER, userText)
+                .thenReturn(conversation);
+    }
 
-                    //合并：会话信息 -> AI响应流
-                    return Flux.concat(conversationFlux, aiResponses);
-                }).onErrorResume(throwable -> {
-                    log.error("Chat error", throwable);
-                    return Flux.just(ServerSentEvent.builder(throwable.getMessage())
-                            .event(ChatStreamResponseTypeEnum.ERROR.name())
-                            .build());
-                });
+    /**
+     * 流式聊天响应处理
+     */
+    private Flux<ServerSentEvent<? extends Serializable>> streamChatResponse(
+            ChatClient chatClient, ChatRequestDTO request, ChatConversation conversation) {
+
+        // 1. 会话信息事件
+        ServerSentEvent<ChatConversation> conversationEvent = ServerSentEvent.builder(conversation)
+                .event(ChatStreamResponseTypeEnum.CONVERSATION_INFO.name())
+                .build();
+
+        // 2. AI响应流
+        return Flux.concat(
+                Flux.just(conversationEvent),
+                streamAiResponse(chatClient, request, conversation)
+        );
+    }
+
+    /**
+     * 流式AI响应并保存
+     */
+    private Flux<ServerSentEvent<String>> streamAiResponse(
+            ChatClient chatClient, ChatRequestDTO request, ChatConversation conversation) {
+
+        StringBuilder responseCollector = new StringBuilder();
+
+        return chatFlux(chatClient, request, conversation)
+                .doOnNext(responseCollector::append)
+                .map(text -> ServerSentEvent.builder(text)
+                        .event(ChatStreamResponseTypeEnum.TEXT.name())
+                        .build())
+                .concatWith(saveAiResponse(conversation, responseCollector));
+    }
+
+    /**
+     * 保存AI响应
+     */
+    private Mono<ServerSentEvent<String>> saveAiResponse(
+            ChatConversation conversation, StringBuilder responseCollector) {
+
+        return Mono.defer(() ->
+                saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, responseCollector.toString())
+        )
+        .map(history -> ServerSentEvent.builder("")
+                .event(ChatStreamResponseTypeEnum.SAVE_COMPLETE.name())
+                .build())
+        .doOnError(error -> log.error("Failed to save AI response", error))
+        .onErrorResume(error -> Mono.empty());
+    }
+
+    /**
+     * 处理聊天错误
+     */
+    private Flux<ServerSentEvent<? extends Serializable>> handleChatError(Throwable throwable) {
+        log.error("Chat error", throwable);
+        return Flux.just(ServerSentEvent.builder(throwable.getMessage())
+                .event(ChatStreamResponseTypeEnum.ERROR.name())
+                .build());
     }
 
     /**

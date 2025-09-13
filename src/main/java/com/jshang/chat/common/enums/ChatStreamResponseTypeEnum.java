@@ -27,5 +27,10 @@ public enum ChatStreamResponseTypeEnum {
      * 错误信息
      */
     ERROR,
+
+    /**
+     * 保存完成
+     */
+    SAVE_COMPLETE,
     ;
 }
