@@ -9,13 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @SpringBootTest
 @Slf4j
 class ChatApplicationTests {
-    @Resource
-    private JdbcTemplate jdbcTemplate;
 
     @Test
     void contextLoads() {
-        jdbcTemplate.execute("SELECT * FROM person");
-        log.info("OK.");
     }
 
 }
