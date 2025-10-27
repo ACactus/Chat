@@ -37,5 +37,6 @@
                 AND ch.seq = #{seq}
             </if>
         </where>
+        ORDER BY ID
     </select>
 </mapper>

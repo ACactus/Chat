@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jshang.chat.mapper.ChatConversationMapper;
 import com.jshang.chat.pojo.entity.ChatConversation;
 import com.jshang.chat.pojo.vo.ChatConversationListItemVO;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,10 +39,10 @@ public class ChatConversationService extends ServiceImpl<ChatConversationMapper,
     /**
      * 新创建一个会话
      */
-    public ChatConversation newConversation(Long userId, String title) {
+    public ChatConversation newConversation(String seq, Long userId, String title) {
         // 新建会话
         ChatConversation conversation = new ChatConversation();
-        String newConversationSeq = UUID.randomUUID().toString().replace("-", "");
+        String newConversationSeq = StringUtils.isNotBlank(seq) ? seq : UUID.randomUUID().toString().replace("-", "");
         conversation.setSeq(newConversationSeq);
         conversation.setTitle(title);
         conversation.setUserId(userId);

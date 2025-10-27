@@ -1,5 +1,6 @@
 package com.jshang.chat.controller;
 
+import com.jshang.chat.common.utils.ThreadLocalUtil;
 import com.jshang.chat.pojo.RestResponse;
 import com.jshang.chat.pojo.dto.chathistory.ChatHistoryQueryDTO;
 import com.jshang.chat.pojo.vo.ChatConversationListItemVO;
@@ -19,7 +20,7 @@ import java.util.List;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/chat/history")
+@RequestMapping("/")
 public class ChatHistoryController {
     private final ChatHistoryService chatHistoryService;
 
@@ -28,15 +29,16 @@ public class ChatHistoryController {
     /**
      * userId查询聊天会话列表
      */
-    @GetMapping("/conversation/list/{userId}")
-    public RestResponse<List<ChatConversationListItemVO>> listConversation(@PathVariable Long userId){
+    @GetMapping("/conversation/list")
+    public RestResponse<List<ChatConversationListItemVO>> listConversation(){
+        Long userId = ThreadLocalUtil.getUserId();
         return RestResponse.ok(chatConversationService.listConversationVO(userId));
     }
 
     /**
      * 查询指定会话聊天记录
      */
-    @PostMapping("/list")
+    @PostMapping("/history/list")
     public RestResponse<List<ChatHistoryListItemVO>> listChatHistory(@RequestBody ChatHistoryQueryDTO param){
         return RestResponse.ok(chatHistoryService.listChatHistory(param));
     }

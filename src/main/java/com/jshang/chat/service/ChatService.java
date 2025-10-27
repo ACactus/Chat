@@ -8,7 +8,6 @@ import com.jshang.chat.pojo.entity.ChatConversation;
 import com.jshang.chat.pojo.entity.ChatHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.codec.ServerSentEvent;
@@ -97,6 +96,7 @@ public class ChatService {
     private Mono<ServerSentEvent<String>> saveAiResponse(
             ChatConversation conversation, StringBuilder responseCollector) {
 
+
         return Mono.defer(() ->
                 saveChatHistoryMono(conversation, ChatRoleEnum.ASSISTANT, responseCollector.toString())
         )
@@ -124,7 +124,13 @@ public class ChatService {
         Long userId = ThreadLocalUtil.getUserId();
         String conversationSeq = request.getConversationSeq();
         String userText = request.getUserText();
-        return Mono.fromCallable(() -> StringUtils.isNotBlank(conversationSeq) ? chatConversationService.getConversationBySeq(conversationSeq) : chatConversationService.newConversation(userId, generateConversationTitle(userText)))
+        return Mono.fromCallable(() -> {
+                    ChatConversation conversation = chatConversationService.getConversationBySeq(conversationSeq);
+                    if(conversation == null){
+                        conversation = chatConversationService.newConversation(request.getConversationSeq(), userId, generateConversationTitle(userText));
+                    }
+                    return conversation;
+                })
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
