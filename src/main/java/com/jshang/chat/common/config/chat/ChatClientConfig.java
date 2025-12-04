@@ -1,6 +1,7 @@
 package com.jshang.chat.common.config.chat;
 
 import com.jshang.chat.common.consts.ModelConst;
+import com.jshang.chat.service.tools.DateTimeTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -26,6 +27,7 @@ public class ChatClientConfig {
         return ChatClient.builder(chatModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .defaultSystem(DEFAULT_SYSTEM)
+                .defaultTools(new DateTimeTools())
                 .build();
     }
 
@@ -37,6 +39,7 @@ public class ChatClientConfig {
         return ChatClient.builder(qwPlusModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .defaultSystem(DEFAULT_SYSTEM)
+                .defaultTools(new DateTimeTools())
                 .build();
     }
 }

@@ -81,7 +81,6 @@ public class ChatService {
             ChatClient chatClient, ChatRequestDTO request, ChatConversation conversation) {
 
         StringBuilder responseCollector = new StringBuilder();
-
         return chatFlux(chatClient, request, conversation)
                 .doOnNext(responseCollector::append)
                 .map(text -> ServerSentEvent.builder(text)
@@ -124,10 +123,11 @@ public class ChatService {
         Long userId = ThreadLocalUtil.getUserId();
         String conversationSeq = request.getConversationSeq();
         String userText = request.getUserText();
+        String model = request.getModel();
         return Mono.fromCallable(() -> {
                     ChatConversation conversation = chatConversationService.getConversationBySeq(conversationSeq);
                     if(conversation == null){
-                        conversation = chatConversationService.newConversation(request.getConversationSeq(), userId, generateConversationTitle(userText));
+                        conversation = chatConversationService.newConversation(request.getConversationSeq(), userId, generateConversationTitle(userText, model));
                     }
                     return conversation;
                 })
@@ -158,7 +158,18 @@ public class ChatService {
      * 生成会话标题
      *  TODO AI生成
      */
-    public String generateConversationTitle(String userText) {
+    public String generateConversationTitle(String userText, String model) {
+        try {
+            ChatClient chatClient = chatClients.get(model);
+            if (chatClient != null) {
+                return chatClient.prompt()
+                        .user("请根据用户的输入总结一个简短的标题（10个字以内）：" + userText)
+                        .call()
+                        .content();
+            }
+        } catch (Exception e) {
+            log.warn("AI generate title failed", e);
+        }
         return userText.substring(0, Math.min(16, userText.length()));
     }
 }

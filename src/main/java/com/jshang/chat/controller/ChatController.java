@@ -7,14 +7,12 @@ import com.jshang.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
-import java.util.Map;
 
 /**
  * @Description 聊天输出Demo
@@ -27,7 +25,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ChatController {
     private final ChatService chatService;
-    private final Map<String, ChatClient> chatClients;
     /**
      * 默认使用模型
      */
